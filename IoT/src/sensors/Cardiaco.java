@@ -1,10 +1,11 @@
 package sensors;
 
-public class Cardiaco {
-	private double bpm;
+public class Cardiaco implements Sensor {
+    private double bpm;
+    private String status;
 
-    public void medirBpm() {
-        // Sorteia de 1 a 6 para incluir os extremos de forma balanceada
+    @Override
+    public double medir() {
         int categoria = (int) Math.floor(Math.random() * 6) + 1;
 
         if (categoria == 1) { 
@@ -23,28 +24,50 @@ public class Cardiaco {
             // Taquicardia Severa (Batimento Muito Alto / Crítico)
             bpm = Math.floor(Math.random() * 61) + 141;  // Gera de 141 a 201 BPM
         }
-        
-        analiseBpm();
+        return bpm;
+    }
+
+    @Override
+    public String getTipoSinal() {
+        return "bpm";
+    }
+
+    @Override
+    public String classificar() {
+        if (bpm > 140) {
+            this.status = "TAQUICARDIA SEVERA (Alerta Crítico)";
+            return "critico";
+        } 
+        else if (bpm > 100) {
+            this.status = "TAQUICARDIA (Batimento Elevado)";
+            return "atencao";
+        }
+        else if (bpm < 60) {
+            this.status = "BRADICARDIA (Batimento Baixo)";
+            return "critico";
+        } 
+        else {
+            this.status = "Batimento NORMAL";
+            return "rotina";
+        }
     }
 
     public void analiseBpm() {
+        classificar();
         System.out.println(bpm + " BPM");
-        
-        if (bpm > 140) {
-            System.out.println("Status: TAQUICARDIA SEVERA (Alerta Crítico)");
-        } 
-        else if (bpm > 100) {
-            System.out.println("Status: TAQUICARDIA (Batimento Elevado)");
-        }
-        else if (bpm < 60) {
-            System.out.println("Status: BRADICARDIA (Batimento Baixo)");
-        } 
-        else {
-            System.out.println("Status: Batimento NORMAL");
-        }
+        System.out.println("Status: " + status);
+    }
+
+    @Override
+    public String getDescricao() {
+        return bpm + " BPM - " + status;
     }
 
     public double getBpm() {
         return this.bpm;
+    }
+
+    public String getStatus() {
+        return this.status;
     }
 }
