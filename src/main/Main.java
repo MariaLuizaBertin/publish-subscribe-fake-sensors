@@ -1,6 +1,6 @@
 package main;
 
-import sensors.FacadeSensors;
+import paciente.Paciente;
 
 public class Main {
 
@@ -13,7 +13,6 @@ public class Main {
         }
 
         System.out.println("Iniciando monitoramento para: " + idPaciente);
-        FacadeSensors monitor = new FacadeSensors();
-        monitor.checkup(idPaciente);
+        Paciente paciente = new Paciente(idPaciente);
     }
 }
