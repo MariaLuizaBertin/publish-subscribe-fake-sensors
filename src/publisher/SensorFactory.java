@@ -1,8 +1,10 @@
 package publisher;
 
 import java.util.List;
+import org.springframework.stereotype.Component;
 import classificador.ClassificadorSinais;
 
+@Component
 public class SensorFactory {
 
     public Sensor criar(String tipo) {

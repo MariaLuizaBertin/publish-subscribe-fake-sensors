@@ -11,7 +11,7 @@ public abstract class Sensor {
 	private String pacienteId;
 
 	public Sensor() {
-		this("paciente1", new ClassificadorSinais(), new Publicador());
+		this("paciente1", new ClassificadorSinais(), null);
 	}
 
 	public Sensor(String pacienteId, ClassificadorSinais classificador, Publicador publicador) {
@@ -32,8 +32,7 @@ public abstract class Sensor {
 		Classificacao c = classificador.classificar(tipoSinal, leitura);
 		SinalVital sinal = new SinalVital(pacienteId, tipoSinal, leitura, getDescricao(), c.prioridade(),
 				c.descricao());
-		String mensagem = publicador.montarMensagem(sinal);
-		publicador.publicar();
+		publicador.publicar(sinal);
 	}
 
 	public abstract double medir();

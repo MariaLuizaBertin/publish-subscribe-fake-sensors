@@ -12,9 +12,9 @@ public class Paciente {
     private final List<Sensor> sensores;
     private final Publicador publicador;
 
-    public Paciente(String nome) {
+    public Paciente(String nome, Publicador publicador) {
         this.nome = nome;
-        this.publicador = new Publicador();
+        this.publicador = publicador;
         ClassificadorSinais classificador = new ClassificadorSinais();
         SensorFactory factory = new SensorFactory();
         this.sensores = factory.criarTodos(nome, classificador, publicador);
