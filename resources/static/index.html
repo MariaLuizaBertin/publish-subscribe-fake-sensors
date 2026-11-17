@@ -20,42 +20,43 @@
         </nav>
     </header>
     <main>
-        <div class="paciente">
-            <p class="title">Paciente 1</p>
-            <p>Temperatura : 37.5</p>
-            <p>Pressão : 37.5</p>
-            <p>Saturação : 37.5</p>
-            <p>BPM : 160</p>
-        </div>
-        <div class="paciente">
-            <p class="title">Paciente 1</p>
-            <p>Temperatura : 37.5</p>
-            <p>Pressão : 37.5</p>
-            <p>Saturação : 37.5</p>
-            <p>BPM : 160</p>
-        </div>
-        <div class="paciente">
-            <p class="title">Paciente 1</p>
-            <p>Temperatura : 37.5</p>
-            <p>Pressão : 37.5</p>
-            <p>Saturação : 37.5</p>
-            <p>BPM : 160</p>
-        </div>
-        <div class="paciente">
-            <p class="title">Paciente 1</p>
-            <p>Temperatura : 37.5</p>
-            <p>Pressão : 37.5</p>
-            <p>Saturação : 37.5</p>
-            <p>BPM : 160</p>
-        </div>
-        <div class="paciente">
-            <p class="title">Paciente 1</p>
-            <p>Temperatura : 37.5</p>
-            <p>Pressão : 37.5</p>
-            <p>Saturação : 37.5</p>
-            <p>BPM : 160</p>
-        </div>
+        
     </main>
 </body>
+<script>
+	function corPrioridade(prioridade) {
+		if (prioridade === "critico") return "red";
+		if (prioridade === "atencao") return "darkorange";
+		return "inherit";
+	}
+
+	function linhaSinal(rotulo, sinal) {
+		const valor = sinal?.mensagem ?? "-";
+		const cor = corPrioridade(sinal?.prioridade);
+		return `<p style="color: ${cor}">${rotulo}: ${valor}</p>`;
+	}
+
+	async function carregarDados(){
+		const resposta = await fetch("/api/enfermagem");
+		const dados = await resposta.json();
+		
+		const main = document.querySelector("main");
+		main.innerHTML = "";
+
+		for (const [nomePaciente, sinais] of Object.entries(dados)) {
+			main.innerHTML += `
+				<div class="paciente">
+					<p class="title">${nomePaciente}</p>
+					${linhaSinal("Temperatura", sinais.temperatura)}
+					${linhaSinal("Pressão", sinais.pressao)}
+					${linhaSinal("Saturação", sinais.spo2)}
+					${linhaSinal("BPM", sinais.bpm)}
+				</div>
+			`;
+		}
+	}
+	carregarDados();
+	setInterval(carregarDados, 3000);
+</script>
 
 </html>

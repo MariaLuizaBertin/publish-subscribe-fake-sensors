@@ -1,20 +1,25 @@
 package subscriber;
 
-public class PainelEnfermagem extends PainelHospitalar {
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-    @Override
-    protected String getTopicoAssinatura() {
-        // Recebe todas as medicoes de todos os leitos e sinais
-        return "#";
+import org.springframework.stereotype.Component;
+
+import model.LeituraPainel;
+
+@Component
+public class PainelEnfermagem implements Subscriber {
+	private final Map<String, Map<String, LeituraPainel>> ultimosSinais = new ConcurrentHashMap<>();
+	
+	@Override
+    public void receber(String routingKey, String paciente, String tipo, String prioridade, String mensagem) {
+        ultimosSinais
+            .computeIfAbsent(paciente, k -> new ConcurrentHashMap<>())
+            .put(tipo, new LeituraPainel(tipo, prioridade, mensagem));
     }
 
-    @Override
-    protected void processarMensagem(String routingKey, String mensagem) {
-        System.out.println(" [Enfermagem] " + routingKey + " -> " + mensagem);
-    }
-
-    @Override
-    protected String getNomePainel() {
-        return "PAINEL DE ENFERMAGEM (Monitoramento Geral)";
-    }
+	@Override
+	public Map<String, Map<String, LeituraPainel>> getUltimosSinais() {
+		return this.ultimosSinais;
+	}
 }

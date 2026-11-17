@@ -1,9 +1,5 @@
 package publisher;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Locale;
-
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
@@ -13,8 +9,6 @@ import model.SinalVital;
 
 @Component
 public class Publicador {
-    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm:ss");
-
     private final RabbitTemplate rabbitTemplate;
 
     public Publicador(RabbitTemplate rabbitTemplate) {
@@ -26,13 +20,7 @@ public class Publicador {
     }
 
     public String montarMensagem(SinalVital sinal) {
-        return String.format("[%s] [%s] %s | %s: %s | %s",
-                LocalTime.now().format(HORA),
-                sinal.getPrioridade().toUpperCase(Locale.ROOT),
-                sinal.getPacienteId(),
-                sinal.getTipo(),
-                sinal.getDescricaoLeitura(),
-                sinal.getDescricaoClassificacao());
+        return sinal.getDescricaoLeitura();
     }
 
     public void publicar(SinalVital sinal) {
