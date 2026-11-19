@@ -9,6 +9,7 @@ import java.util.concurrent.TimeoutException;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -18,9 +19,21 @@ import com.rabbitmq.client.DeliverCallback;
 import broker.RabbitMQConfig;
 import subscriber.Subscriber;
 
+
 // Observer e Mediator
 @Service
 public class SinalVitalMediator {
+	@Value("${spring.rabbitmq.host:localhost}")
+	private String host;
+
+	@Value("${spring.rabbitmq.port:5672}")
+	private int port;
+
+	@Value("${spring.rabbitmq.username:guest}")
+	private String username;
+
+	@Value("${spring.rabbitmq.password:guest}")
+	private String password;
 
 	private static List<String> FILAS_SINAIS = List.of(
 			RabbitMQConfig.FILA_CARDIACO,
@@ -49,7 +62,10 @@ public class SinalVitalMediator {
 	@EventListener(ApplicationReadyEvent.class)
 	public void iniciarConexao() {
 		ConnectionFactory factory = new ConnectionFactory();
-		factory.setHost(RabbitMQConfig.HOST);
+    	factory.setHost(host);
+    	factory.setPort(port);
+    	factory.setUsername(username);
+    	factory.setPassword(password);
 
 		try {
 			connection = factory.newConnection();
