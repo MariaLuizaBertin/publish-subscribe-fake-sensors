@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Hospitalar</title>
+    <title>Sistema Hospitalar - Painel Móvel</title>
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <link rel="stylesheet" href="./padrao.css">
     <link rel="stylesheet" href="./movel.css">
@@ -19,6 +19,90 @@
             <a>Painel Móvel</a>
         </nav>
     </header>
+    <main>
+        <section class="secao-atuais">
+            <h2>Alertas Críticos Atuais</h2>
+            <div id="atuais-container"></div>
+        </section>
+        <section id="historico-container"></section>
+    </main>
 </body>
+<script>
+	const rotulos = {
+		temperatura: "Temperatura",
+		pressao: "Pressão",
+		spo2: "Saturação",
+		bpm: "BPM"
+	};
+
+	async function carregarDados() {
+		const resposta = await fetch("/api/movel");
+		const dados = await resposta.json();
+		const atuais = Object.entries(dados.atuais ?? {});
+		const historico = dados.historico ?? [];
+
+		const atuaisContainer = document.getElementById("atuais-container");
+		if (atuais.length === 0) {
+			atuaisContainer.innerHTML = `<p class="aviso">Nenhuma medição crítica ativa no momento.</p>`;
+		} else {
+			atuaisContainer.innerHTML = "";
+			for (const [nomePaciente, sinais] of atuais) {
+				const linhas = Object.entries(sinais)
+					.map(([tipo, sinal]) => `<p class="critico">${rotulos[tipo] ?? tipo}: ${sinal.mensagem}</p>`)
+					.join("");
+
+				atuaisContainer.innerHTML += `
+					<div class="paciente">
+						<p class="title">${nomePaciente}</p>
+						${linhas}
+					</div>
+				`;
+			}
+		}
+
+		const historicoContainer = document.getElementById("historico-container");
+		if (historico.length === 0) {
+			historicoContainer.innerHTML = `
+				<h2>Histórico de Medições Críticas (0)</h2>
+				<p class="aviso">Nenhum alerta crítico registrado até o momento.</p>
+			`;
+			return;
+		}
+
+		const linhasHistorico = [...historico]
+			.reverse()
+			.map((item) => `
+				<tr class="critico">
+					<td>${item.horario ?? "-"}</td>
+					<td>${item.paciente ?? "-"}</td>
+					<td>${rotulos[item.tipo] ?? item.tipo}</td>
+					<td>${item.mensagem}</td>
+				</tr>
+			`)
+			.join("");
+
+		historicoContainer.innerHTML = `
+			<h2>Histórico de Medições Críticas (${historico.length})</h2>
+			<div class="tabela-wrapper">
+				<table>
+					<thead>
+						<tr>
+							<th>Horário</th>
+							<th>Paciente</th>
+							<th>Sinal</th>
+							<th>Medição</th>
+						</tr>
+					</thead>
+					<tbody>
+						${linhasHistorico}
+					</tbody>
+				</table>
+			</div>
+		`;
+	}
+
+	carregarDados();
+	setInterval(carregarDados, 3000);
+</script>
 
 </html>

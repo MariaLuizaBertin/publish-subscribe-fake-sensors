@@ -82,6 +82,17 @@ public class SinalVitalMediator {
 		String prioridade = partes[2];
 
 		for (Subscriber sub : subscribers) {
+			String pacienteFiltro = sub.getPacienteFiltro();
+			if (pacienteFiltro != null && !pacienteFiltro.equalsIgnoreCase(paciente)) {
+				continue;
+			}
+
+			String prioridadeFiltro = sub.getPrioridadeFiltro();
+			if (prioridadeFiltro != null && !prioridadeFiltro.equalsIgnoreCase(prioridade)) {
+				sub.removerSinalAtual(paciente, tipo);
+				continue;
+			}
+
 			sub.receber(routingKey, paciente, tipo, prioridade, mensagem);
 		}
 	}
