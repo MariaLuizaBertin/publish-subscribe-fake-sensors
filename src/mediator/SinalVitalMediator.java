@@ -67,24 +67,44 @@ public class SinalVitalMediator {
     	factory.setUsername(username);
     	factory.setPassword(password);
 
-		try {
-			connection = factory.newConnection();
-			channel = connection.createChannel();
+		int maxTentativas = 10;
+		int tentativa = 0;
+		int espera = 2000; // ms
 
-			DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-				String mensagem = new String(delivery.getBody(), StandardCharsets.UTF_8);
-				String routingKey = delivery.getEnvelope().getRoutingKey();
-				aoReceberMensagem(routingKey, mensagem);
-			};
+		while (tentativa < maxTentativas) {
+			tentativa++;
+			try {
+				connection = factory.newConnection();
+				channel = connection.createChannel();
 
-			for (String fila : FILAS_SINAIS) {
-				channel.basicConsume(fila, true, deliverCallback, consumerTag -> { });
+				DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+					String mensagem = new String(delivery.getBody(), StandardCharsets.UTF_8);
+					String routingKey = delivery.getEnvelope().getRoutingKey();
+					aoReceberMensagem(routingKey, mensagem);
+				};
+
+				for (String fila : FILAS_SINAIS) {
+					channel.basicConsume(fila, true, deliverCallback, consumerTag -> { });
+				}
+
+				System.out.println("SinalVitalMediator conectado ao RabbitMQ (tentativa " + tentativa + ").");
+				return; // sucesso, sai do loop
+
+			} catch (IOException | TimeoutException e) {
+				System.err.println("[" + tentativa + "/" + maxTentativas + "] RabbitMQ ainda não disponível: " + e.getMessage());
+				if (tentativa < maxTentativas) {
+					try {
+						Thread.sleep(espera);
+					} catch (InterruptedException ie) {
+						Thread.currentThread().interrupt();
+						return;
+					}
+					espera = Math.min(espera * 2, 15000); // backoff exponencial, máx 15s
+				}
 			}
-
-			System.out.println("SinalVitalMediator conectado manualmente ao RabbitMQ.");
-		} catch (IOException | TimeoutException e) {
-			System.err.println("Erro ao conectar SinalVitalMediator ao RabbitMQ: " + e.getMessage());
 		}
+
+		System.err.println("Não foi possível conectar ao RabbitMQ após " + maxTentativas + " tentativas.");
 	}
 
 	public void aoReceberMensagem(String routingKey, String mensagem) {
