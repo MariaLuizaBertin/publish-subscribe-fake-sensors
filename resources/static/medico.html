@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Hospitalar - Painel Médico</title>
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="stylesheet" href="./padrao.css">
+    <link rel="stylesheet" href="./medico.css">
+</head>
+
+<body>
+    <header>
+        <a href="./index.html"><img src="./favicon.ico"></a>
+        <nav>
+            <a href="./index.html">Painel Enfermagem</a>
+            <a>Painel Médico</a>
+            <a href="./movel.html">Painel Móvel</a>
+        </nav>
+    </header>
+    <main>
+        <div class="seletor">
+            <label for="paciente-select">Selecione o paciente:</label>
+            <select id="paciente-select">
+                <option value="">-- Escolha um paciente --</option>
+            </select>
+        </div>
+        <div id="painel-container"></div>
+        <section id="historico-container"></section>
+    </main>
+</body>
+<script>
+	let pacienteSelecionado = "";
+
+	const rotulos = {
+		temperatura: "Temperatura",
+		pressao: "Pressão",
+		spo2: "Saturação",
+		bpm: "BPM"
+	};
+
+	function corPrioridade(prioridade) {
+		if (prioridade === "critico") return "red";
+		if (prioridade === "atencao") return "darkorange";
+		return "inherit";
+	}
+
+	function linhaSinal(rotulo, sinal) {
+		const valor = sinal?.mensagem ?? "-";
+		const cor = corPrioridade(sinal?.prioridade);
+		return `<p style="color: ${cor}">${rotulo}: ${valor}</p>`;
+	}
+
+	async function carregarPacientes() {
+		const resposta = await fetch("/api/pacientes");
+		const pacientes = await resposta.json();
+		const select = document.getElementById("paciente-select");
+
+		for (const paciente of pacientes) {
+			const option = document.createElement("option");
+			option.value = paciente;
+			option.textContent = paciente;
+			select.appendChild(option);
+		}
+	}
+
+	async function carregarDados() {
+		const container = document.getElementById("painel-container");
+		const historicoContainer = document.getElementById("historico-container");
+
+		if (!pacienteSelecionado) {
+			container.innerHTML = `<p class="aviso">Selecione um paciente para monitorar os sinais vitais.</p>`;
+			historicoContainer.innerHTML = "";
+			return;
+		}
+
+		const resposta = await fetch(`/api/medico?paciente=${encodeURIComponent(pacienteSelecionado)}`);
+		const dados = await resposta.json();
+		const sinais = dados.ultimosSinais ?? {};
+		const historico = dados.historico ?? [];
+
+		if (historico.length === 0) {
+			container.innerHTML = `<p class="aviso">Aguardando sinais vitais de ${pacienteSelecionado}...</p>`;
+			historicoContainer.innerHTML = "";
+			return;
+		}
+
+		container.innerHTML = `
+			<div class="paciente">
+				<p class="title">${dados.paciente}</p>
+				${linhaSinal("Temperatura", sinais.temperatura)}
+				${linhaSinal("Pressão", sinais.pressao)}
+				${linhaSinal("Saturação", sinais.spo2)}
+				${linhaSinal("BPM", sinais.bpm)}
+			</div>
+		`;
+
+		const linhasHistorico = [...historico]
+			.reverse()
+			.map((item) => `
+				<tr style="color: ${corPrioridade(item.prioridade)}">
+					<td>${item.horario ?? "-"}</td>
+					<td>${rotulos[item.tipo] ?? item.tipo}</td>
+					<td>${item.mensagem}</td>
+					<td>${item.prioridade}</td>
+				</tr>
+			`)
+			.join("");
+
+		historicoContainer.innerHTML = `
+			<h2>Histórico de Medições (${historico.length})</h2>
+			<div class="tabela-wrapper">
+				<table>
+					<thead>
+						<tr>
+							<th>Horário</th>
+							<th>Sinal</th>
+							<th>Medição</th>
+							<th>Prioridade</th>
+						</tr>
+					</thead>
+					<tbody>
+						${linhasHistorico}
+					</tbody>
+				</table>
+			</div>
+		`;
+	}
+
+	document.getElementById("paciente-select").addEventListener("change", (event) => {
+		pacienteSelecionado = event.target.value;
+		carregarDados();
+	});
+
+	carregarPacientes();
+	carregarDados();
+	setInterval(carregarDados, 3000);
+</script>
+
+</html>
