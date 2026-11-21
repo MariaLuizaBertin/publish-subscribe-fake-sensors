@@ -30,8 +30,14 @@
         <section id="historico-container"></section>
     </main>
 </body>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 <script>
 	let pacienteSelecionado = "";
+
+	// estado local: { tipo -> { mensagem, prioridade, horario } }
+	let sinaisAtuais = {};
+	const historico = [];
 
 	const rotulos = {
 		temperatura: "Temperatura",
@@ -52,20 +58,20 @@
 		return `<p style="color: ${cor}">${rotulo}: ${valor}</p>`;
 	}
 
+	// preenche o <select> com os pacientes via REST (apenas 1x na inicialização)
 	async function carregarPacientes() {
 		const resposta = await fetch("/api/pacientes");
 		const pacientes = await resposta.json();
 		const select = document.getElementById("paciente-select");
-
-		for (const paciente of pacientes) {
-			const option = document.createElement("option");
-			option.value = paciente;
-			option.textContent = paciente;
-			select.appendChild(option);
+		for (const p of pacientes) {
+			const opt = document.createElement("option");
+			opt.value = p;
+			opt.textContent = p;
+			select.appendChild(opt);
 		}
 	}
 
-	async function carregarDados() {
+	function renderizarPainel() {
 		const container = document.getElementById("painel-container");
 		const historicoContainer = document.getElementById("historico-container");
 
@@ -75,11 +81,6 @@
 			return;
 		}
 
-		const resposta = await fetch(`/api/medico?paciente=${encodeURIComponent(pacienteSelecionado)}`);
-		const dados = await resposta.json();
-		const sinais = dados.ultimosSinais ?? {};
-		const historico = dados.historico ?? [];
-
 		if (historico.length === 0) {
 			container.innerHTML = `<p class="aviso">Aguardando sinais vitais de ${pacienteSelecionado}...</p>`;
 			historicoContainer.innerHTML = "";
@@ -88,17 +89,17 @@
 
 		container.innerHTML = `
 			<div class="paciente">
-				<p class="title">${dados.paciente}</p>
-				${linhaSinal("Temperatura", sinais.temperatura)}
-				${linhaSinal("Pressão", sinais.pressao)}
-				${linhaSinal("Saturação", sinais.spo2)}
-				${linhaSinal("BPM", sinais.bpm)}
+				<p class="title">${pacienteSelecionado}</p>
+				${linhaSinal("Temperatura", sinaisAtuais.temperatura)}
+				${linhaSinal("Pressão",     sinaisAtuais.pressao)}
+				${linhaSinal("Saturação",   sinaisAtuais.spo2)}
+				${linhaSinal("BPM",         sinaisAtuais.bpm)}
 			</div>
 		`;
 
 		const linhasHistorico = [...historico]
 			.reverse()
-			.map((item) => `
+			.map(item => `
 				<tr style="color: ${corPrioridade(item.prioridade)}">
 					<td>${item.horario ?? "-"}</td>
 					<td>${rotulos[item.tipo] ?? item.tipo}</td>
@@ -112,30 +113,54 @@
 			<h2>Histórico de Medições (${historico.length})</h2>
 			<div class="tabela-wrapper">
 				<table>
-					<thead>
-						<tr>
-							<th>Horário</th>
-							<th>Sinal</th>
-							<th>Medição</th>
-							<th>Prioridade</th>
-						</tr>
-					</thead>
-					<tbody>
-						${linhasHistorico}
-					</tbody>
+					<thead><tr>
+						<th>Horário</th><th>Sinal</th><th>Medição</th><th>Prioridade</th>
+					</tr></thead>
+					<tbody>${linhasHistorico}</tbody>
 				</table>
 			</div>
 		`;
 	}
 
+	// ── WebSocket ──────────────────────────────────────────────────
+	let stompClient = null;
+	let subscricaoPaciente = null;
+
+	function conectarWebSocket() {
+		const socket = new SockJS("/ws");
+		stompClient = Stomp.over(socket);
+		stompClient.debug = null;
+		stompClient.connect({}, () => {
+			if (pacienteSelecionado) assinarPaciente(pacienteSelecionado);
+		}, () => setTimeout(conectarWebSocket, 3000));
+	}
+
+	function assinarPaciente(paciente) {
+		if (subscricaoPaciente) { subscricaoPaciente.unsubscribe(); subscricaoPaciente = null; }
+		sinaisAtuais = {};
+		historico.length = 0;
+		renderizarPainel();
+
+		if (!paciente || !stompClient?.connected) return;
+
+		subscricaoPaciente = stompClient.subscribe(`/topic/paciente/${paciente}`, (msg) => {
+			const leitura = JSON.parse(msg.body);
+			if (leitura.paciente !== paciente) return;
+
+			sinaisAtuais[leitura.tipo] = leitura;
+			historico.push({ ...leitura, horario: new Date().toLocaleTimeString() });
+			renderizarPainel();
+		});
+	}
+
 	document.getElementById("paciente-select").addEventListener("change", (event) => {
 		pacienteSelecionado = event.target.value;
-		carregarDados();
+		assinarPaciente(pacienteSelecionado);
 	});
 
 	carregarPacientes();
-	carregarDados();
-	setInterval(carregarDados, 3000);
+	renderizarPainel();
+	conectarWebSocket();
 </script>
 
 </html>
