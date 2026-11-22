@@ -81,7 +81,7 @@
 			return;
 		}
 
-		if (historico.length === 0) {
+		if (historico.length === 0 && Object.keys(sinaisAtuais).length === 0) {
 			container.innerHTML = `<p class="aviso">Aguardando sinais vitais de ${pacienteSelecionado}...</p>`;
 			historicoContainer.innerHTML = "";
 			return;
@@ -135,20 +135,37 @@
 		}, () => setTimeout(conectarWebSocket, 3000));
 	}
 
-	function assinarPaciente(paciente) {
+	// carga inicial via REST ao selecionar um paciente para trazer últimos sinais e histórico prévio
+	async function carregarInicialPaciente(paciente) {
+		const resposta = await fetch(`/api/medico?paciente=${encodeURIComponent(paciente)}`);
+		const dados = await resposta.json();
+		if (paciente !== pacienteSelecionado) return;
+
+		sinaisAtuais = { ...(dados.ultimosSinais ?? {}) };
+		historico.length = 0;
+		for (const item of dados.historico ?? []) {
+			historico.push(item);
+		}
+		renderizarPainel();
+	}
+
+	async function assinarPaciente(paciente) {
 		if (subscricaoPaciente) { subscricaoPaciente.unsubscribe(); subscricaoPaciente = null; }
 		sinaisAtuais = {};
 		historico.length = 0;
 		renderizarPainel();
 
-		if (!paciente || !stompClient?.connected) return;
+		if (!paciente) return;
+
+		await carregarInicialPaciente(paciente);
+		if (paciente !== pacienteSelecionado || !stompClient?.connected) return;
 
 		subscricaoPaciente = stompClient.subscribe(`/topic/paciente/${paciente}`, (msg) => {
 			const leitura = JSON.parse(msg.body);
-			if (leitura.paciente !== paciente) return;
+			if (leitura.paciente !== pacienteSelecionado) return;
 
 			sinaisAtuais[leitura.tipo] = leitura;
-			historico.push({ ...leitura, horario: new Date().toLocaleTimeString() });
+			historico.push({ ...leitura, horario: leitura.horario ?? new Date().toLocaleTimeString() });
 			renderizarPainel();
 		});
 	}

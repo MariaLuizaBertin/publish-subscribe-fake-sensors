@@ -98,27 +98,57 @@
 		`;
 	}
 
+	// carga inicial via REST para já exibir alertas ativos e histórico prévio
+	async function carregarInicial() {
+		const resposta = await fetch("/api/movel");
+		const dados = await resposta.json();
+
+		for (const chave of Object.keys(atuais)) delete atuais[chave];
+		for (const [paciente, sinais] of Object.entries(dados.atuais ?? {})) {
+			atuais[paciente] = { ...sinais };
+		}
+
+		historico.length = 0;
+		for (const item of dados.historico ?? []) {
+			historico.push(item);
+		}
+
+		renderizarMovel();
+	}
+
 	// ── WebSocket ──────────────────────────────────────────────────
 	function conectarWebSocket() {
 		const socket = new SockJS("/ws");
 		const client = Stomp.over(socket);
 		client.debug = null;
 		client.connect({}, () => {
-			client.subscribe("/topic/criticos", (msg) => {
+			client.subscribe("/topic/sinais", (msg) => {
 				const leitura = JSON.parse(msg.body);
-				const { paciente, tipo, mensagem, prioridade } = leitura;
+				const { paciente, tipo, mensagem, prioridade, horario } = leitura;
 
-				if (!atuais[paciente]) atuais[paciente] = {};
-				atuais[paciente][tipo] = { mensagem, prioridade };
-				historico.push({ paciente, tipo, mensagem, prioridade, horario: new Date().toLocaleTimeString() });
-
-				renderizarMovel();
+				if (prioridade === "critico") {
+					if (!atuais[paciente]) atuais[paciente] = {};
+					atuais[paciente][tipo] = { mensagem, prioridade };
+					historico.push({
+						paciente,
+						tipo,
+						mensagem,
+						prioridade,
+						horario: horario ?? new Date().toLocaleTimeString()
+					});
+					renderizarMovel();
+				} else if (atuais[paciente]?.[tipo]) {
+					delete atuais[paciente][tipo];
+					if (Object.keys(atuais[paciente]).length === 0) {
+						delete atuais[paciente];
+					}
+					renderizarMovel();
+				}
 			});
 		}, () => setTimeout(conectarWebSocket, 3000));
 	}
 
-	renderizarMovel();
-	conectarWebSocket();
+	carregarInicial().then(() => conectarWebSocket());
 </script>
 
 </html>
