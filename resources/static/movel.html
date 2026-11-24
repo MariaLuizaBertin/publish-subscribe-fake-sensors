@@ -69,7 +69,10 @@
         container.innerHTML = "";
         for (const [paciente, sinais] of entradas) {
             const linhas = Object.entries(sinais)
-                .map(([tipo, s]) => `<p class="critico">🔴 ${rotulos[tipo] ?? tipo}: ${s.mensagem}</p>`)
+                .map(([tipo, s]) => {
+                    const detalhe = s.condicao ? ` — <strong>${s.condicao}</strong>` : "";
+                    return `<p class="critico">🔴 ${rotulos[tipo] ?? tipo}: ${s.mensagem}${detalhe}</p>`;
+                })
                 .join("");
             container.innerHTML += `
                 <div class="card-paciente-atual">
@@ -97,7 +100,7 @@
                     <div class="tabela-wrapper">
                         <table>
                             <thead><tr>
-                                <th>Horário</th><th>Sinal</th><th>Medição</th>
+                                <th>Horário</th><th>Sinal</th><th>Medição</th><th>Condição</th>
                             </tr></thead>
                             <tbody id="tbody-${paciente}"></tbody>
                         </table>
@@ -117,7 +120,8 @@
         tr.innerHTML = `
             <td>${item.horario ?? "-"}</td>
             <td>${rotulos[item.tipo] ?? item.tipo}</td>
-            <td>${item.mensagem}</td>`;
+            <td>${item.mensagem}</td>
+            <td>${item.condicao || "-"}</td>`;
         tbody.insertBefore(tr, tbody.firstChild); // insere no topo (mais recente)
 
         // atualiza contador do bloco
@@ -146,14 +150,14 @@
     }
 
     // ── Novo alerta recebido ──────────────────────────────────────
-    function registrarAlerta(paciente, tipo, mensagem, horario) {
+    function registrarAlerta(paciente, tipo, mensagem, condicao, horario) {
         // atuais
         if (!atuais[paciente]) atuais[paciente] = {};
-        atuais[paciente][tipo] = { mensagem, prioridade: "critico" };
+        atuais[paciente][tipo] = { mensagem, condicao: condicao ?? "", prioridade: "critico" };
 
         // histórico por paciente
         if (!historicoPorPaciente[paciente]) historicoPorPaciente[paciente] = [];
-        const item = { tipo, mensagem, horario: horario ?? new Date().toLocaleTimeString("pt-BR") };
+        const item = { tipo, mensagem, condicao: condicao ?? "", horario: horario ?? new Date().toLocaleTimeString("pt-BR") };
         historicoPorPaciente[paciente].push(item);
         totalAlertas++;
 
@@ -206,12 +210,12 @@
         const client = Stomp.over(socket);
         client.debug = null;
         client.connect({}, () => {
-            client.subscribe("/topic/sinais", (msg) => {
-                const { paciente, tipo, mensagem, prioridade, horario } = JSON.parse(msg.body);
-                if (prioridade === "critico") {
-                    registrarAlerta(paciente, tipo, mensagem, horario);
+            client.subscribe("/topic/criticos", (msg) => {
+                const evento = JSON.parse(msg.body);
+                if (evento.resolvido) {
+                    removerAtual(evento.paciente, evento.tipo);
                 } else {
-                    removerAtual(paciente, tipo);
+                    registrarAlerta(evento.paciente, evento.tipo, evento.mensagem, evento.condicao, evento.horario);
                 }
             });
         }, () => setTimeout(conectarWebSocket, 3000));

@@ -20,7 +20,15 @@ public class Publicador {
     }
 
     public String montarMensagem(SinalVital sinal) {
-        return sinal.getDescricaoLeitura();
+        return "{\"leitura\":\"" + escaparJson(sinal.getDescricaoLeitura())
+                + "\",\"condicao\":\"" + escaparJson(sinal.getDescricaoClassificacao()) + "\"}";
+    }
+
+    private String escaparJson(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        return valor.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     public void publicar(SinalVital sinal) {

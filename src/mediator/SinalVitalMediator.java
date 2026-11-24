@@ -117,6 +117,14 @@ public class SinalVitalMediator {
 		String tipo = partes[1];
 		String prioridade = partes[2];
 
+		String leitura = extrairCampoJson(mensagem, "leitura");
+		String condicao = extrairCampoJson(mensagem, "condicao");
+		if (leitura == null) {
+			// Compatibilidade com mensagens em texto puro
+			leitura = mensagem;
+			condicao = "";
+		}
+
 		for (Subscriber sub : subscribers) {
 			String pacienteFiltro = sub.getPacienteFiltro();
 			if (pacienteFiltro != null && !pacienteFiltro.equalsIgnoreCase(paciente)) {
@@ -129,7 +137,42 @@ public class SinalVitalMediator {
 				continue;
 			}
 
-			sub.receber(routingKey, paciente, tipo, prioridade, mensagem);
+			sub.receber(routingKey, paciente, tipo, prioridade, leitura, condicao);
 		}
+	}
+
+	private String extrairCampoJson(String json, String campo) {
+		if (json == null || !json.trim().startsWith("{")) {
+			return null;
+		}
+		String chave = "\"" + campo + "\"";
+		int idxChave = json.indexOf(chave);
+		if (idxChave < 0) {
+			return null;
+		}
+		int idxDoisPontos = json.indexOf(':', idxChave + chave.length());
+		if (idxDoisPontos < 0) {
+			return null;
+		}
+		int idxInicio = json.indexOf('"', idxDoisPontos + 1);
+		if (idxInicio < 0) {
+			return null;
+		}
+		StringBuilder sb = new StringBuilder();
+		boolean escapando = false;
+		for (int i = idxInicio + 1; i < json.length(); i++) {
+			char c = json.charAt(i);
+			if (escapando) {
+				sb.append(c);
+				escapando = false;
+			} else if (c == '\\') {
+				escapando = true;
+			} else if (c == '"') {
+				return sb.toString();
+			} else {
+				sb.append(c);
+			}
+		}
+		return null;
 	}
 }

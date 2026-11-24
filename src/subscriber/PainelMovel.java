@@ -53,8 +53,8 @@ public class PainelMovel implements Subscriber {
 	// -------------------------------------------------------------------------
 
 	@Override
-	public void receber(String routingKey, String paciente, String tipo, String prioridade, String mensagem) {
-		LeituraPainel leitura = new LeituraPainel(paciente, tipo, prioridade, mensagem);
+	public void receber(String routingKey, String paciente, String tipo, String prioridade, String mensagem, String condicao) {
+		LeituraPainel leitura = new LeituraPainel(paciente, tipo, prioridade, mensagem, condicao);
 
 		// Atualiza o sinal atual por paciente/tipo
 		ultimosSinais

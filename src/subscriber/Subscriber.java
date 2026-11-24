@@ -5,7 +5,11 @@ import java.util.Map;
 import model.LeituraPainel;
 
 public interface Subscriber {
-	public void receber(String routingKey, String paciente, String tipo, String prioridade, String mensagem);
+	default void receber(String routingKey, String paciente, String tipo, String prioridade, String mensagem) {
+		receber(routingKey, paciente, tipo, prioridade, mensagem, "");
+	}
+
+	public void receber(String routingKey, String paciente, String tipo, String prioridade, String mensagem, String condicao);
 	
 	public Map<String, Map<String, LeituraPainel>> getUltimosSinais();
 
