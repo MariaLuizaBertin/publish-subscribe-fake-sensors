@@ -76,15 +76,24 @@ public class SinalVitalMediator {
 			try {
 				connection = factory.newConnection();
 				channel = connection.createChannel();
+				// Prefetch = 1 garante que o RabbitMQ respeite a ordenação por prioridade na fila
+				channel.basicQos(1);
 
 				DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+					long deliveryTag = delivery.getEnvelope().getDeliveryTag();
 					String mensagem = new String(delivery.getBody(), StandardCharsets.UTF_8);
 					String routingKey = delivery.getEnvelope().getRoutingKey();
-					aoReceberMensagem(routingKey, mensagem);
+					try {
+						aoReceberMensagem(routingKey, mensagem);
+						channel.basicAck(deliveryTag, false);
+					} catch (RuntimeException e) {
+						System.err.println("Erro ao processar mensagem '" + routingKey + "': " + e.getMessage());
+						channel.basicNack(deliveryTag, false, false);
+					}
 				};
 
 				for (String fila : FILAS_SINAIS) {
-					channel.basicConsume(fila, true, deliverCallback, consumerTag -> { });
+					channel.basicConsume(fila, false, deliverCallback, consumerTag -> { });
 				}
 
 				System.out.println("SinalVitalMediator conectado ao RabbitMQ (tentativa " + tentativa + ").");
