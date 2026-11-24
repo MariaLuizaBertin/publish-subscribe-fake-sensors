@@ -49,10 +49,10 @@ Sensores simulados publicam leituras de sinais vitais (batimentos cardíacos, pr
 
 | Sensor | Routing Key | Fila | Classificação |
 |---|---|---|---|
-| Cardíaco | `<paciente>.bpm.<prioridade>` | `fila.cardiaco` | `< 60` ou `> 140` → **crítico** / `> 100` → **atenção** |
-| Pressão | `<paciente>.pressao.<prioridade>` | `fila.pressao` | Sistólica `> 180` → **crítico** / `> 140` → **atenção** |
-| Saturação (SpO₂) | `<paciente>.spo2.<prioridade>` | `fila.saturacao` | `< 90%` → **crítico** / `< 95%` → **atenção** |
-| Temperatura | `<paciente>.temperatura.<prioridade>` | `fila.temperatura` | `> 39.5°C` → **crítico** / `> 37.5°C` → **atenção** |
+| Cardíaco | `<paciente>.bpm.<prioridade>` | `fila.cardiaco` | `< 60` ou `> 140` → **crítico** / `101–140` → **atenção** |
+| Pressão | `<paciente>.pressao.<prioridade>` | `fila.pressao` | Sistólica `< 90` ou `≥ 140` → **crítico** / `121–139` → **atenção** |
+| Saturação (SpO₂) | `<paciente>.spo2.<prioridade>` | `fila.saturacao` | `< 90%` → **crítico** / `90%–94%` → **atenção** |
+| Temperatura | `<paciente>.temperatura.<prioridade>` | `fila.temperatura` | `< 35.0°C` ou `≥ 37.8°C` → **crítico** / `37.3°C–37.7°C` → **atenção** |
 
 ---
 

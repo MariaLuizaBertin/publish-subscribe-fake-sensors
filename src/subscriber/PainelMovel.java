@@ -1,15 +1,13 @@
 package subscriber;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import model.LeituraPainel;
 
@@ -19,13 +17,12 @@ import model.LeituraPainel;
  *
  * <p>Estrutura de histórico:
  * <pre>
- *   historicosPorPaciente → { pacienteId → Deque&lt;LeituraPainel&gt; (LIFO, máx N) }
+ *   historicosPorPaciente → { pacienteId → Deque&lt;LeituraPainel&gt; (ordem cronológica, máx N) }
  * </pre>
  *
  * <p>O limite padrão é {@value #LIMITE_PADRAO} entradas por paciente e pode ser
- * sobrescrito via propriedade {@code monitoramento.movel.historico-limite}.
+ * sobrescrito via propriedade {@code monitoramento.movel.historico-limite} (injetada via {@link PainelFactory}).
  */
-@Component
 public class PainelMovel implements Subscriber {
 
 	private static final String PRIORIDADE_CRITICA = "critico";
@@ -44,10 +41,10 @@ public class PainelMovel implements Subscriber {
 	private final int limiteHistorico;
 
 	public PainelMovel() {
-		this.limiteHistorico = LIMITE_PADRAO;
+		this(LIMITE_PADRAO);
 	}
 
-	public PainelMovel(@Value("${monitoramento.movel.historico-limite:" + LIMITE_PADRAO + "}") int limiteHistorico) {
+	public PainelMovel(int limiteHistorico) {
 		this.limiteHistorico = limiteHistorico > 0 ? limiteHistorico : LIMITE_PADRAO;
 	}
 
@@ -81,12 +78,16 @@ public class PainelMovel implements Subscriber {
 		return this.ultimosSinais;
 	}
 
-	/** Retorna todo o histórico crítico, agregado e ordenado do mais recente ao mais antigo. */
+	/** Retorna todo o histórico crítico agregado (em ordem cronológica por paciente). */
 	@Override
 	public List<LeituraPainel> getHistorico() {
-		return historicosPorPaciente.values().stream()
-			.flatMap(dq -> dq.stream())
-			.toList();
+		List<LeituraPainel> agregado = new ArrayList<>();
+		historicosPorPaciente.values().forEach(fila -> {
+			synchronized (fila) {
+				agregado.addAll(fila);
+			}
+		});
+		return Collections.unmodifiableList(agregado);
 	}
 
 	@Override
@@ -100,7 +101,7 @@ public class PainelMovel implements Subscriber {
 
 	/**
 	 * Retorna o histórico crítico de um paciente específico
-	 * (do mais recente ao mais antigo).
+	 * (em ordem cronológica, do mais antigo ao mais recente).
 	 */
 	public List<LeituraPainel> getHistoricoPorPaciente(String pacienteId) {
 		Deque<LeituraPainel> fila = historicosPorPaciente.get(pacienteId);
@@ -114,7 +115,7 @@ public class PainelMovel implements Subscriber {
 
 	/**
 	 * Retorna um snapshot do histórico de todos os pacientes, agrupado por ID.
-	 * A ordem dentro de cada lista é do mais recente ao mais antigo.
+	 * A ordem dentro de cada lista é cronológica (do mais antigo ao mais recente).
 	 */
 	public Map<String, List<LeituraPainel>> getHistoricosPorPaciente() {
 		Map<String, List<LeituraPainel>> snapshot = new LinkedHashMap<>();

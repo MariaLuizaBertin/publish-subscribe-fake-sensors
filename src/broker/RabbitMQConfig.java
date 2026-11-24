@@ -21,7 +21,7 @@ public class RabbitMQConfig {
 
     @Bean
     public TopicExchange hospitalExchange() {
-        return new TopicExchange(EXCHANGE_NAME, false, false);
+        return new TopicExchange(EXCHANGE_NAME, true, false);
     }
 
     @Bean
