@@ -1,0 +1,111 @@
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 60px 80px;
+    gap: 40px;
+
+    h2 {
+        font-size: 1.3rem;
+        text-align: center;
+    }
+
+    .aviso {
+        text-align: center;
+        font-size: 1.15rem;
+        color: #555;
+    }
+}
+
+.secao-atuais {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+#atuais-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 32px;
+    width: 100%;
+
+    .paciente {
+        display: flex;
+        font-size: 1.15rem;
+        flex-direction: column;
+        gap: 10px;
+        justify-content: center;
+        background-color: #fff0f0;
+        border: 2px solid red;
+        width: 400px;
+        min-height: 180px;
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 1px 1px 1px black;
+        overflow-wrap: break-word;
+
+        .title {
+            margin: 0 auto 4px;
+            font-weight: bold;
+        }
+
+        .critico {
+            color: red;
+            font-weight: bold;
+        }
+    }
+}
+
+#historico-container {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+
+    .tabela-wrapper {
+        overflow-x: auto;
+        border-radius: 12px;
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.35);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #fffdf5;
+        font-size: 1rem;
+    }
+
+    th,
+    td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    thead {
+        background-color: #ffcccc;
+    }
+
+    tbody tr.critico {
+        color: red;
+        font-weight: 500;
+    }
+
+    tbody tr:hover {
+        background-color: #fff0f0;
+    }
+}
+
+@media screen and (max-width: 800px) {
+    main {
+        margin: 40px 20px;
+    }
+
+    #atuais-container .paciente {
+        width: 300px;
+    }
+}

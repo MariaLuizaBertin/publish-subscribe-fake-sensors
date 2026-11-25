@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Hospitalar</title>
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="stylesheet" href="./padrao.css">
+    <link rel="stylesheet" href="./index.css">
+</head>
+
+<body>
+    <header>
+        <a><img src="./favicon.ico"></a>
+        <nav>
+            <a>Painel Enfermagem</a>
+            <a href="./medico.html">Painel Médico</a>
+            <a href="./movel.html">Painel Móvel</a>
+        </nav>
+    </header>
+    <main></main>
+</body>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+    // estado local: { paciente -> { tipo -> { mensagem, prioridade } } }
+    const estado = {};
+
+    const rotulos = {
+        temperatura: "Temperatura",
+        pressao: "Pressão",
+        spo2: "Saturação",
+        bpm: "BPM"
+    };
+
+    function corPrioridade(prioridade) {
+        if (prioridade === "critico") return "red";
+        if (prioridade === "atencao") return "darkorange";
+        return "inherit";
+    }
+
+    function linhaSinal(rotulo, sinal) {
+        const valor = sinal?.mensagem ?? "-";
+        const cor = corPrioridade(sinal?.prioridade);
+        return `<p style="color: ${cor}">${rotulo}: ${valor}</p>`;
+    }
+
+    function renderizarPaciente(paciente) {
+        const main = document.querySelector("main");
+        const sinais = estado[paciente] ?? {};
+
+        let card = document.getElementById(`paciente-${paciente}`);
+        if (!card) {
+            card = document.createElement("div");
+            card.className = "paciente";
+            card.id = `paciente-${paciente}`;
+            main.appendChild(card);
+        }
+
+        card.innerHTML = `
+            <p class="title">${paciente}</p>
+            ${linhaSinal("Temperatura", sinais.temperatura)}
+            ${linhaSinal("Pressão",     sinais.pressao)}
+            ${linhaSinal("Saturação",   sinais.spo2)}
+            ${linhaSinal("BPM",         sinais.bpm)}
+        `;
+    }
+
+    // carga inicial via REST para não aparecer vazio antes do 1º sinal
+    async function carregarInicial() {
+        const resposta = await fetch("/api/enfermagem");
+        const dados = await resposta.json();
+        for (const [paciente, sinais] of Object.entries(dados)) {
+            estado[paciente] = sinais;
+            renderizarPaciente(paciente);
+        }
+    }
+
+    // WebSocket: atualiza só o card do paciente que chegou
+    function conectarWebSocket() {
+        const socket = new SockJS("/ws");
+        const client = Stomp.over(socket);
+        client.debug = null;
+
+        client.connect({}, () => {
+            client.subscribe("/topic/sinais", (msg) => {
+                const leitura = JSON.parse(msg.body);
+                const { paciente, tipo, mensagem, prioridade } = leitura;
+
+                if (!estado[paciente]) estado[paciente] = {};
+                estado[paciente][tipo] = { mensagem, prioridade };
+                renderizarPaciente(paciente);
+            });
+        }, () => {
+            // reconexão automática em caso de queda
+            setTimeout(conectarWebSocket, 3000);
+        });
+    }
+
+    carregarInicial().then(() => conectarWebSocket());
+</script>
+
+</html>

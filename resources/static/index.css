@@ -1,0 +1,48 @@
+main {
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    margin: 80px;
+    gap: 40px;
+
+    .paciente {
+        display: flex;
+        font-size: 1.15rem;
+        flex-direction: column;
+        gap: 10px;
+        justify-content: center;
+        background-color: beige;
+        width: 400px;
+        min-height: 200px;
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 1px 1px 1px black;
+        overflow-wrap: break-word;
+
+        .title {
+            margin: 0 auto 4px;
+            font-weight: bold;
+        }
+    }
+}
+
+@media screen and (max-width: 1800px) {
+    main {
+        grid-template-columns: auto auto auto;
+    }
+}
+
+@media screen and (max-width: 1400px) {
+    main {
+        grid-template-columns: auto auto;
+    }
+}
+
+@media screen and (max-width: 800px) {
+    main {
+        .paciente {
+            width: 300px;
+        }
+
+        grid-template-columns: auto;
+    }
+}

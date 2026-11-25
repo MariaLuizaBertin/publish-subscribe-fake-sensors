@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Hospitalar - Painel Móvel</title>
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="stylesheet" href="./padrao.css">
+    <link rel="stylesheet" href="./movel.css">
+</head>
+
+<body>
+    <header>
+        <a href="./index.html"><img src="./favicon.ico"></a>
+        <nav>
+            <a href="./index.html">Painel Enfermagem</a>
+            <a href="./medico.html">Painel Médico</a>
+            <a>Painel Móvel</a>
+        </nav>
+    </header>
+    <main>
+        <section class="secao-atuais">
+            <h2>Alertas Críticos Atuais</h2>
+            <div id="atuais-container"></div>
+        </section>
+        <section id="historico-container"></section>
+    </main>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+	const rotulos = {
+		temperatura: "Temperatura",
+		pressao: "Pressão",
+		spo2: "Saturação",
+		bpm: "BPM"
+	};
+
+	// estado local — sem REST periódico
+	// atuais: { paciente -> { tipo -> leitura } }
+	const atuais = {};
+	const historico = [];
+
+	function renderizarMovel() {
+		const atuaisContainer = document.getElementById("atuais-container");
+		const entradas = Object.entries(atuais);
+
+		if (entradas.length === 0) {
+			atuaisContainer.innerHTML = `<p class="aviso">Nenhuma medição crítica ativa no momento.</p>`;
+		} else {
+			atuaisContainer.innerHTML = "";
+			for (const [nomePaciente, sinais] of entradas) {
+				const linhas = Object.entries(sinais)
+					.map(([tipo, sinal]) => `<p class="critico">${rotulos[tipo] ?? tipo}: ${sinal.mensagem}</p>`)
+					.join("");
+				atuaisContainer.innerHTML += `
+					<div class="paciente">
+						<p class="title">${nomePaciente}</p>
+						${linhas}
+					</div>
+				`;
+			}
+		}
+
+		const historicoContainer = document.getElementById("historico-container");
+		if (historico.length === 0) {
+			historicoContainer.innerHTML = `
+				<h2>Histórico de Medições Críticas (0)</h2>
+				<p class="aviso">Nenhum alerta crítico registrado até o momento.</p>
+			`;
+			return;
+		}
+
+		const linhasHistorico = [...historico]
+			.slice()
+			.reverse()
+			.map(item => `
+				<tr class="critico">
+					<td>${item.horario ?? "-"}</td>
+					<td>${item.paciente ?? "-"}</td>
+					<td>${rotulos[item.tipo] ?? item.tipo}</td>
+					<td>${item.mensagem}</td>
+				</tr>
+			`)
+			.join("");
+
+		historicoContainer.innerHTML = `
+			<h2>Histórico de Medições Críticas (${historico.length})</h2>
+			<div class="tabela-wrapper">
+				<table>
+					<thead><tr>
+						<th>Horário</th><th>Paciente</th><th>Sinal</th><th>Medição</th>
+					</tr></thead>
+					<tbody>${linhasHistorico}</tbody>
+				</table>
+			</div>
+		`;
+	}
+
+	// carga inicial via REST para já exibir alertas ativos e histórico prévio
+	async function carregarInicial() {
+		const resposta = await fetch("/api/movel");
+		const dados = await resposta.json();
+
+		for (const chave of Object.keys(atuais)) delete atuais[chave];
+		for (const [paciente, sinais] of Object.entries(dados.atuais ?? {})) {
+			atuais[paciente] = { ...sinais };
+		}
+
+		historico.length = 0;
+		for (const item of dados.historico ?? []) {
+			historico.push(item);
+		}
+
+		renderizarMovel();
+	}
+
+	// ── WebSocket ──────────────────────────────────────────────────
+	function conectarWebSocket() {
+		const socket = new SockJS("/ws");
+		const client = Stomp.over(socket);
+		client.debug = null;
+		client.connect({}, () => {
+			client.subscribe("/topic/sinais", (msg) => {
+				const leitura = JSON.parse(msg.body);
+				const { paciente, tipo, mensagem, prioridade, horario } = leitura;
+
+				if (prioridade === "critico") {
+					if (!atuais[paciente]) atuais[paciente] = {};
+					atuais[paciente][tipo] = { mensagem, prioridade };
+					historico.push({
+						paciente,
+						tipo,
+						mensagem,
+						prioridade,
+						horario: horario ?? new Date().toLocaleTimeString()
+					});
+					renderizarMovel();
+				} else if (atuais[paciente]?.[tipo]) {
+					delete atuais[paciente][tipo];
+					if (Object.keys(atuais[paciente]).length === 0) {
+						delete atuais[paciente];
+					}
+					renderizarMovel();
+				}
+			});
+		}, () => setTimeout(conectarWebSocket, 3000));
+	}
+
+	carregarInicial().then(() => conectarWebSocket());
+</script>
+
+</html>
