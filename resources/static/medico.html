@@ -55,7 +55,8 @@
 	function linhaSinal(rotulo, sinal) {
 		const valor = sinal?.mensagem ?? "-";
 		const cor = corPrioridade(sinal?.prioridade);
-		return `<p style="color: ${cor}">${rotulo}: ${valor}</p>`;
+		const condicao = sinal?.condicao && sinal?.prioridade !== "rotina" ? ` — ${sinal.condicao}` : "";
+		return `<p style="color: ${cor}">${rotulo}: ${valor}${condicao}</p>`;
 	}
 
 	// preenche o <select> com os pacientes via REST (apenas 1x na inicialização)
@@ -104,6 +105,7 @@
 					<td>${item.horario ?? "-"}</td>
 					<td>${rotulos[item.tipo] ?? item.tipo}</td>
 					<td>${item.mensagem}</td>
+					<td>${item.condicao || "-"}</td>
 					<td>${item.prioridade}</td>
 				</tr>
 			`)
@@ -114,7 +116,7 @@
 			<div class="tabela-wrapper">
 				<table>
 					<thead><tr>
-						<th>Horário</th><th>Sinal</th><th>Medição</th><th>Prioridade</th>
+						<th>Horário</th><th>Sinal</th><th>Medição</th><th>Condição</th><th>Prioridade</th>
 					</tr></thead>
 					<tbody>${linhasHistorico}</tbody>
 				</table>

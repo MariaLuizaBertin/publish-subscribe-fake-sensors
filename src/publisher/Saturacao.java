@@ -15,10 +15,10 @@ public class Saturacao extends Sensor {
             spo2 = Math.floor(Math.random() * 6) + 95; // Gera de 95% a 100%
         } else if (categoria == 5) {
             // Hipóxia Leve / Atenção
-            spo2 = Math.floor(Math.random() * 4) + 91; // Gera de 91% a 94%
+            spo2 = Math.floor(Math.random() * 5) + 90; // Gera de 90% a 94%
         } else {
-            // Hipóxia Moderada
-            spo2 = Math.floor(Math.random() * 10) + 81; // Gera de 81% a 90%
+            // Hipóxia Moderada / Crítica
+            spo2 = Math.floor(Math.random() * 9) + 81; // Gera de 81% a 89%
         }
         return spo2;
     }

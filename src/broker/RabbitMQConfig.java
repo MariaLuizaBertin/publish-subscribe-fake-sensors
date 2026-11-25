@@ -18,18 +18,19 @@ public class RabbitMQConfig {
     public static final String FILA_PRESSAO     = "fila.pressao";
     public static final String FILA_SATURACAO   = "fila.saturacao";
     public static final String FILA_TEMPERATURA = "fila.temperatura";
+    public static final int MAX_PRIORIDADE      = 10;
 
     @Bean
     public TopicExchange hospitalExchange() {
-        return new TopicExchange(EXCHANGE_NAME, false, false);
+        return new TopicExchange(EXCHANGE_NAME, true, false);
     }
 
     @Bean
     public Declarables filasSinaisVitais(TopicExchange hospitalExchange) {
-        Queue cardiaco    = QueueBuilder.durable(FILA_CARDIACO).build();
-        Queue pressao     = QueueBuilder.durable(FILA_PRESSAO).build();
-        Queue saturacao   = QueueBuilder.durable(FILA_SATURACAO).build();
-        Queue temperatura = QueueBuilder.durable(FILA_TEMPERATURA).build();
+        Queue cardiaco    = QueueBuilder.durable(FILA_CARDIACO).maxPriority(MAX_PRIORIDADE).build();
+        Queue pressao     = QueueBuilder.durable(FILA_PRESSAO).maxPriority(MAX_PRIORIDADE).build();
+        Queue saturacao   = QueueBuilder.durable(FILA_SATURACAO).maxPriority(MAX_PRIORIDADE).build();
+        Queue temperatura = QueueBuilder.durable(FILA_TEMPERATURA).maxPriority(MAX_PRIORIDADE).build();
 
         // Routing key esperada: <paciente>.<tipo>.<prioridade>
         return new Declarables(

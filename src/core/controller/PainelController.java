@@ -70,9 +70,29 @@ public class PainelController {
 
 	@GetMapping("/movel")
 	public Map<String, Object> movel() {
+		subscriber.PainelMovel painelMovel = (subscriber.PainelMovel) movel;
 		return Map.of(
-			"atuais", movel.getUltimosSinais(),
-			"historico", movel.getHistorico()
+			"atuais", painelMovel.getUltimosSinais(),
+			"historicoPorPaciente", painelMovel.getHistoricosPorPaciente(),
+			"historico", painelMovel.getHistorico(),
+			"limiteHistoricoPorPaciente", painelMovel.getLimiteHistorico()
+		);
+	}
+
+	@GetMapping("/movel/historico")
+	public Map<String, Object> movelHistoricoPorPaciente(@RequestParam(required = false) String paciente) {
+		subscriber.PainelMovel painelMovel = (subscriber.PainelMovel) movel;
+		if (paciente != null && !paciente.isBlank()) {
+			String id = paciente.trim();
+			return Map.of(
+				"paciente", id,
+				"historico", painelMovel.getHistoricoPorPaciente(id),
+				"limite", painelMovel.getLimiteHistorico()
+			);
+		}
+		return Map.of(
+			"historicoPorPaciente", painelMovel.getHistoricosPorPaciente(),
+			"limite", painelMovel.getLimiteHistorico()
 		);
 	}
 }
