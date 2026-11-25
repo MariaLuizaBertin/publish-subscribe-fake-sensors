@@ -44,7 +44,8 @@
     function linhaSinal(rotulo, sinal) {
         const valor = sinal?.mensagem ?? "-";
         const cor = corPrioridade(sinal?.prioridade);
-        return `<p style="color: ${cor}">${rotulo}: ${valor}</p>`;
+        const titulo = sinal?.condicao ? ` title="${sinal.condicao}"` : "";
+        return `<p style="color: ${cor}"${titulo}>${rotulo}: ${valor}</p>`;
     }
 
     function renderizarPaciente(paciente) {
@@ -87,10 +88,10 @@
         client.connect({}, () => {
             client.subscribe("/topic/sinais", (msg) => {
                 const leitura = JSON.parse(msg.body);
-                const { paciente, tipo, mensagem, prioridade } = leitura;
+                const { paciente, tipo, mensagem, condicao, prioridade } = leitura;
 
                 if (!estado[paciente]) estado[paciente] = {};
-                estado[paciente][tipo] = { mensagem, prioridade };
+                estado[paciente][tipo] = { mensagem, condicao, prioridade };
                 renderizarPaciente(paciente);
             });
         }, () => {

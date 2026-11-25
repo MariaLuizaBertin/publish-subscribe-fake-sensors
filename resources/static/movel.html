@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Hospitalar - Painel Móvel</title>
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
-    <link rel="stylesheet" href="./padrao.css">
-    <link rel="stylesheet" href="./movel.css">
+    <link rel="stylesheet" href="./padrao.css?v=2">
+    <link rel="stylesheet" href="./movel.css?v=2">
 </head>
 
 <body>
@@ -20,135 +20,208 @@
         </nav>
     </header>
     <main>
+        <!-- ── Alertas atuais ───────────────────────────────────── -->
         <section class="secao-atuais">
-            <h2>Alertas Críticos Atuais</h2>
+            <h2>⚠️ Alertas Críticos Atuais</h2>
             <div id="atuais-container"></div>
         </section>
-        <section id="historico-container"></section>
+
+        <!-- ── Histórico separado por paciente ─────────────────── -->
+        <section class="secao-historico">
+            <div class="historico-cabecalho">
+                <h2>🕒 Histórico de Alertas Críticos por Paciente</h2>
+                <span id="total-badge" class="badge">0 alertas</span>
+            </div>
+            <p id="historico-vazio" class="aviso">Nenhum alerta crítico registrado até o momento.</p>
+            <div id="historico-pacientes"></div>
+        </section>
     </main>
 </body>
+
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 <script>
-	const rotulos = {
-		temperatura: "Temperatura",
-		pressao: "Pressão",
-		spo2: "Saturação",
-		bpm: "BPM"
-	};
+    const rotulos = {
+        temperatura: "Temperatura",
+        pressao: "Pressão",
+        spo2: "Saturação",
+        bpm: "BPM"
+    };
 
-	// estado local — sem REST periódico
-	// atuais: { paciente -> { tipo -> leitura } }
-	const atuais = {};
-	const historico = [];
+    // ── Estado local ──────────────────────────────────────────────
+    // atuais:   { paciente -> { tipo -> { mensagem, prioridade } } }
+    // historico: { paciente -> [{ tipo, mensagem, horario }, ...] }  (mais recente por último)
+    const atuais = {};
+    const historicoPorPaciente = {};
+    let totalAlertas = 0;
 
-	function renderizarMovel() {
-		const atuaisContainer = document.getElementById("atuais-container");
-		const entradas = Object.entries(atuais);
+    // ── Renderização ──────────────────────────────────────────────
 
-		if (entradas.length === 0) {
-			atuaisContainer.innerHTML = `<p class="aviso">Nenhuma medição crítica ativa no momento.</p>`;
-		} else {
-			atuaisContainer.innerHTML = "";
-			for (const [nomePaciente, sinais] of entradas) {
-				const linhas = Object.entries(sinais)
-					.map(([tipo, sinal]) => `<p class="critico">${rotulos[tipo] ?? tipo}: ${sinal.mensagem}</p>`)
-					.join("");
-				atuaisContainer.innerHTML += `
-					<div class="paciente">
-						<p class="title">${nomePaciente}</p>
-						${linhas}
-					</div>
-				`;
-			}
-		}
+    function renderizarAtuais() {
+        const container = document.getElementById("atuais-container");
+        const entradas = Object.entries(atuais);
 
-		const historicoContainer = document.getElementById("historico-container");
-		if (historico.length === 0) {
-			historicoContainer.innerHTML = `
-				<h2>Histórico de Medições Críticas (0)</h2>
-				<p class="aviso">Nenhum alerta crítico registrado até o momento.</p>
-			`;
-			return;
-		}
+        if (entradas.length === 0) {
+            container.innerHTML = `<p class="aviso">Nenhuma medição crítica ativa no momento.</p>`;
+            return;
+        }
 
-		const linhasHistorico = [...historico]
-			.slice()
-			.reverse()
-			.map(item => `
-				<tr class="critico">
-					<td>${item.horario ?? "-"}</td>
-					<td>${item.paciente ?? "-"}</td>
-					<td>${rotulos[item.tipo] ?? item.tipo}</td>
-					<td>${item.mensagem}</td>
-				</tr>
-			`)
-			.join("");
+        container.innerHTML = "";
+        for (const [paciente, sinais] of entradas) {
+            const linhas = Object.entries(sinais)
+                .map(([tipo, s]) => {
+                    const detalhe = s.condicao ? ` — <strong>${s.condicao}</strong>` : "";
+                    return `<p class="critico">🔴 ${rotulos[tipo] ?? tipo}: ${s.mensagem}${detalhe}</p>`;
+                })
+                .join("");
+            container.innerHTML += `
+                <div class="card-paciente-atual">
+                    <p class="title">${paciente}</p>
+                    ${linhas}
+                </div>`;
+        }
+    }
 
-		historicoContainer.innerHTML = `
-			<h2>Histórico de Medições Críticas (${historico.length})</h2>
-			<div class="tabela-wrapper">
-				<table>
-					<thead><tr>
-						<th>Horário</th><th>Paciente</th><th>Sinal</th><th>Medição</th>
-					</tr></thead>
-					<tbody>${linhasHistorico}</tbody>
-				</table>
-			</div>
-		`;
-	}
+    /** Garante que existe um bloco colapsável para o paciente e devolve o <tbody>. */
+    function garantirBlocoPaciente(paciente) {
+        const container = document.getElementById("historico-pacientes");
+        let bloco = document.getElementById(`hist-${paciente}`);
+        if (!bloco) {
+            bloco = document.createElement("div");
+            bloco.id = `hist-${paciente}`;
+            bloco.className = "bloco-paciente";
+            bloco.innerHTML = `
+                <button class="bloco-cabecalho" onclick="toggleBloco('${paciente}')">
+                    <span class="bloco-nome">${paciente}</span>
+                    <span class="bloco-contador" id="cnt-${paciente}">0 alertas</span>
+                    <span class="bloco-seta" id="seta-${paciente}">▼</span>
+                </button>
+                <div class="bloco-corpo" id="corpo-${paciente}">
+                    <div class="tabela-wrapper">
+                        <table>
+                            <thead><tr>
+                                <th>Horário</th><th>Sinal</th><th>Medição</th><th>Condição</th>
+                            </tr></thead>
+                            <tbody id="tbody-${paciente}"></tbody>
+                        </table>
+                    </div>
+                </div>`;
+            container.appendChild(bloco);
+        }
+        return document.getElementById(`tbody-${paciente}`);
+    }
 
-	// carga inicial via REST para já exibir alertas ativos e histórico prévio
-	async function carregarInicial() {
-		const resposta = await fetch("/api/movel");
-		const dados = await resposta.json();
+    /** Adiciona uma linha no topo da tabela do paciente (mais recente primeiro). */
+    function adicionarLinhaHistorico(paciente, item) {
+        const tbody = garantirBlocoPaciente(paciente);
 
-		for (const chave of Object.keys(atuais)) delete atuais[chave];
-		for (const [paciente, sinais] of Object.entries(dados.atuais ?? {})) {
-			atuais[paciente] = { ...sinais };
-		}
+        const tr = document.createElement("tr");
+        tr.className = "critico";
+        tr.innerHTML = `
+            <td>${item.horario ?? "-"}</td>
+            <td>${rotulos[item.tipo] ?? item.tipo}</td>
+            <td>${item.mensagem}</td>
+            <td>${item.condicao || "-"}</td>`;
+        tbody.insertBefore(tr, tbody.firstChild); // insere no topo (mais recente)
 
-		historico.length = 0;
-		for (const item of dados.historico ?? []) {
-			historico.push(item);
-		}
+        // atualiza contador do bloco
+        const lista = historicoPorPaciente[paciente];
+        const cnt = document.getElementById(`cnt-${paciente}`);
+        if (cnt && lista) cnt.textContent = `${lista.length} ${lista.length === 1 ? "alerta" : "alertas"}`;
+    }
 
-		renderizarMovel();
-	}
+    function atualizarTotalBadge() {
+        const badge = document.getElementById("total-badge");
+        if (badge) badge.textContent = `${totalAlertas} ${totalAlertas === 1 ? "alerta" : "alertas"}`;
+    }
 
-	// ── WebSocket ──────────────────────────────────────────────────
-	function conectarWebSocket() {
-		const socket = new SockJS("/ws");
-		const client = Stomp.over(socket);
-		client.debug = null;
-		client.connect({}, () => {
-			client.subscribe("/topic/sinais", (msg) => {
-				const leitura = JSON.parse(msg.body);
-				const { paciente, tipo, mensagem, prioridade, horario } = leitura;
+    function ocultarMensagemVazia() {
+        const aviso = document.getElementById("historico-vazio");
+        if (aviso) aviso.style.display = "none";
+    }
 
-				if (prioridade === "critico") {
-					if (!atuais[paciente]) atuais[paciente] = {};
-					atuais[paciente][tipo] = { mensagem, prioridade };
-					historico.push({
-						paciente,
-						tipo,
-						mensagem,
-						prioridade,
-						horario: horario ?? new Date().toLocaleTimeString()
-					});
-					renderizarMovel();
-				} else if (atuais[paciente]?.[tipo]) {
-					delete atuais[paciente][tipo];
-					if (Object.keys(atuais[paciente]).length === 0) {
-						delete atuais[paciente];
-					}
-					renderizarMovel();
-				}
-			});
-		}, () => setTimeout(conectarWebSocket, 3000));
-	}
+    // ── Toggle dos blocos colapsáveis ─────────────────────────────
+    function toggleBloco(paciente) {
+        const corpo = document.getElementById(`corpo-${paciente}`);
+        const seta  = document.getElementById(`seta-${paciente}`);
+        if (!corpo) return;
+        const aberto = corpo.classList.toggle("aberto");
+        if (seta) seta.textContent = aberto ? "▲" : "▼";
+    }
 
-	carregarInicial().then(() => conectarWebSocket());
+    // ── Novo alerta recebido ──────────────────────────────────────
+    function registrarAlerta(paciente, tipo, mensagem, condicao, horario) {
+        // atuais
+        if (!atuais[paciente]) atuais[paciente] = {};
+        atuais[paciente][tipo] = { mensagem, condicao: condicao ?? "", prioridade: "critico" };
+
+        // histórico por paciente
+        if (!historicoPorPaciente[paciente]) historicoPorPaciente[paciente] = [];
+        const item = { tipo, mensagem, condicao: condicao ?? "", horario: horario ?? new Date().toLocaleTimeString("pt-BR") };
+        historicoPorPaciente[paciente].push(item);
+        totalAlertas++;
+
+        ocultarMensagemVazia();
+        renderizarAtuais();
+        adicionarLinhaHistorico(paciente, item);
+        atualizarTotalBadge();
+    }
+
+    function removerAtual(paciente, tipo) {
+        if (!atuais[paciente]?.[tipo]) return;
+        delete atuais[paciente][tipo];
+        if (Object.keys(atuais[paciente]).length === 0) delete atuais[paciente];
+        renderizarAtuais();
+    }
+
+    // ── Carga inicial via REST ────────────────────────────────────
+    async function carregarInicial() {
+        const resposta = await fetch("/api/movel");
+        const dados = await resposta.json();
+
+        // atuais
+        for (const [paciente, sinais] of Object.entries(dados.atuais ?? {})) {
+            atuais[paciente] = { ...sinais };
+        }
+        renderizarAtuais();
+
+        // histórico separado por paciente vindo da API
+        const histAPI = dados.historicoPorPaciente ?? {};
+        for (const [paciente, lista] of Object.entries(histAPI)) {
+            if (!Array.isArray(lista) || lista.length === 0) continue;
+            historicoPorPaciente[paciente] = [];
+            garantirBlocoPaciente(paciente);
+            ocultarMensagemVazia();
+
+            // lista já está do mais antigo ao mais recente; inserimos do mais
+            // recente para o mais antigo para que o topo fique mais recente
+            for (const item of lista) {
+                historicoPorPaciente[paciente].push(item);
+                totalAlertas++;
+                adicionarLinhaHistorico(paciente, item);
+            }
+        }
+        atualizarTotalBadge();
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────
+    function conectarWebSocket() {
+        const socket = new SockJS("/ws");
+        const client = Stomp.over(socket);
+        client.debug = null;
+        client.connect({}, () => {
+            client.subscribe("/topic/criticos", (msg) => {
+                const evento = JSON.parse(msg.body);
+                if (evento.resolvido) {
+                    removerAtual(evento.paciente, evento.tipo);
+                } else {
+                    registrarAlerta(evento.paciente, evento.tipo, evento.mensagem, evento.condicao, evento.horario);
+                }
+            });
+        }, () => setTimeout(conectarWebSocket, 3000));
+    }
+
+    carregarInicial().then(() => conectarWebSocket());
 </script>
 
 </html>

@@ -1,22 +1,24 @@
+/* ── Layout geral ──────────────────────────────────────────────────── */
 main {
     display: flex;
     flex-direction: column;
     align-items: center;
     margin: 60px 80px;
-    gap: 40px;
-
-    h2 {
-        font-size: 1.3rem;
-        text-align: center;
-    }
-
-    .aviso {
-        text-align: center;
-        font-size: 1.15rem;
-        color: #555;
-    }
+    gap: 48px;
 }
 
+h2 {
+    font-size: 1.3rem;
+}
+
+.aviso {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #666;
+    padding: 12px 0;
+}
+
+/* ── Seção: alertas atuais ─────────────────────────────────────────── */
 .secao-atuais {
     width: 100%;
     display: flex;
@@ -29,83 +31,183 @@ main {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 32px;
+    gap: 28px;
     width: 100%;
-
-    .paciente {
-        display: flex;
-        font-size: 1.15rem;
-        flex-direction: column;
-        gap: 10px;
-        justify-content: center;
-        background-color: #fff0f0;
-        border: 2px solid red;
-        width: 400px;
-        min-height: 180px;
-        padding: 20px;
-        border-radius: 20px;
-        box-shadow: 1px 1px 1px black;
-        overflow-wrap: break-word;
-
-        .title {
-            margin: 0 auto 4px;
-            font-weight: bold;
-        }
-
-        .critico {
-            color: red;
-            font-weight: bold;
-        }
-    }
 }
 
-#historico-container {
-    width: 100%;
-    max-width: 900px;
+.card-paciente-atual {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-
-    .tabela-wrapper {
-        overflow-x: auto;
-        border-radius: 12px;
-        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.35);
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        background-color: #fffdf5;
-        font-size: 1rem;
-    }
-
-    th,
-    td {
-        padding: 12px 16px;
-        text-align: left;
-        border-bottom: 1px solid #ddd;
-    }
-
-    thead {
-        background-color: #ffcccc;
-    }
-
-    tbody tr.critico {
-        color: red;
-        font-weight: 500;
-    }
-
-    tbody tr:hover {
-        background-color: #fff0f0;
-    }
+    gap: 10px;
+    background-color: #fff0f0;
+    border: 2px solid #cc0000;
+    width: 340px;
+    min-height: 160px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    box-shadow: 0 2px 6px rgba(180, 0, 0, 0.18);
+    overflow-wrap: break-word;
+    font-size: 1.1rem;
 }
 
+.card-paciente-atual .title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+    margin-bottom: 4px;
+    text-transform: capitalize;
+    letter-spacing: 0.03em;
+}
+
+.card-paciente-atual .critico {
+    color: #cc0000;
+    font-weight: 600;
+}
+
+/* ── Seção: histórico por paciente ─────────────────────────────────── */
+.secao-historico {
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.historico-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    background-color: #cc0000;
+    color: white;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+/* ── Bloco colapsável por paciente ──────────────────────────────────── */
+.bloco-paciente {
+    border: 1px solid #e0b0b0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.bloco-cabecalho {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #ffecec;
+    border: none;
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-family: inherit;
+    text-align: left;
+    transition: background-color 0.15s;
+}
+
+.bloco-cabecalho:hover {
+    background-color: #ffd6d6;
+}
+
+.bloco-nome {
+    font-weight: 700;
+    flex: 1;
+    text-transform: capitalize;
+    font-size: 1.05rem;
+}
+
+.bloco-contador {
+    font-size: 0.82rem;
+    background-color: #cc0000;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.bloco-seta {
+    font-size: 0.85rem;
+    color: #880000;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* corpo colapsável — fechado por padrão */
+.bloco-corpo {
+    display: none;
+    background-color: #fffafa;
+}
+
+.bloco-corpo.aberto {
+    display: block;
+}
+
+/* ── Tabela de histórico ────────────────────────────────────────────── */
+.tabela-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.97rem;
+}
+
+th, td {
+    padding: 11px 16px;
+    text-align: left;
+    border-bottom: 1px solid #f0d0d0;
+}
+
+thead {
+    background-color: #ffd6d6;
+    position: sticky;
+    top: 0;
+}
+
+thead th {
+    font-weight: 700;
+    color: #880000;
+}
+
+tbody tr.critico {
+    color: #cc0000;
+}
+
+tbody tr:hover {
+    background-color: #fff0f0;
+}
+
+/* ── Responsivo ─────────────────────────────────────────────────────── */
 @media screen and (max-width: 800px) {
     main {
-        margin: 40px 20px;
+        margin: 32px 16px;
+        gap: 32px;
     }
 
-    #atuais-container .paciente {
-        width: 300px;
+    .card-paciente-atual {
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .secao-historico {
+        max-width: 100%;
+    }
+
+    .bloco-cabecalho {
+        padding: 12px 14px;
+    }
+
+    th, td {
+        padding: 9px 10px;
+        font-size: 0.9rem;
     }
 }
